@@ -2,6 +2,7 @@ import express from "express";
 import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
+import { fileURLToPath } from "url";
 
 import issuesRouter from "./routes/issues.js";
 import usersRouter from "./routes/users.js";
@@ -10,11 +11,9 @@ import authRouter from "./routes/auth.js";
 import rewardsRouter from "./routes/rewards.js";
 
 function loadBackendEnv() {
-  const currentDir = process.cwd();
-  // Ensure we safely look for .env whether starting from root or inside backend folder directly
-  const backendEnvDir = currentDir.endsWith("backend")
-    ? currentDir
-    : path.resolve(currentDir, "backend");
+  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+  const repoRoot = path.resolve(moduleDir, "..");
+  const envSearchDirs = [moduleDir, repoRoot, process.cwd()];
 
   const envFiles =
     process.env.NODE_ENV === "production"
@@ -22,9 +21,12 @@ function loadBackendEnv() {
       : [".env.local", ".env"];
 
   for (const file of envFiles) {
-    const envPath = path.join(backendEnvDir, file);
-    if (fs.existsSync(envPath)) {
-      dotenv.config({ path: envPath });
+    for (const envDir of envSearchDirs) {
+      const envPath = path.join(envDir, file);
+      if (fs.existsSync(envPath)) {
+        dotenv.config({ path: envPath });
+        break;
+      }
     }
   }
 }

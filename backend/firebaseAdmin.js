@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import {
   cert,
   getApps,
@@ -12,6 +13,8 @@ const FIREBASE_DATABASE_ID =
   "ai-studio-9058f14f-cff7-45f2-bffc-29ef557ed2de";
 const DEFAULT_SERVICE_ACCOUNT_PATH =
   "vast-zone-472711-j5-firebase-adminsdk-fbsvc-17d2b4531a.json";
+const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(MODULE_DIR, "..");
 
 let adminDb = null;
 
@@ -68,13 +71,21 @@ function loadServiceAccount(credentialsValue) {
     return JSON.parse(trimmedValue);
   }
 
-  const resolvedPath = path.isAbsolute(trimmedValue)
-    ? trimmedValue
-    : path.join(process.cwd(), trimmedValue);
+  const candidatePaths = path.isAbsolute(trimmedValue)
+    ? [trimmedValue]
+    : [
+        path.resolve(MODULE_DIR, trimmedValue),
+        path.resolve(REPO_ROOT, trimmedValue),
+        path.resolve(process.cwd(), trimmedValue),
+      ];
 
-  if (!fs.existsSync(resolvedPath)) {
+  const resolvedPath = candidatePaths.find((candidatePath) =>
+    fs.existsSync(candidatePath),
+  );
+
+  if (!resolvedPath) {
     throw new Error(
-      `Firebase Admin credentials file not found at ${resolvedPath}`,
+      `Firebase Admin credentials file not found at ${candidatePaths[0]}`,
     );
   }
 
@@ -96,7 +107,9 @@ export function getAdminDb() {
         projectId: serviceAccount.project_id,
       });
 
-  console.log(`[Firebase Admin] Initialized with project_id: ${serviceAccount.project_id}, client_email: ${serviceAccount.client_email}`);
+  console.log(
+    `[Firebase Admin] Initialized with project_id: ${serviceAccount.project_id}, client_email: ${serviceAccount.client_email}`,
+  );
 
   adminDb = getAdminFirestore(adminApp, FIREBASE_DATABASE_ID);
   adminDb.settings({ ignoreUndefinedProperties: true });
