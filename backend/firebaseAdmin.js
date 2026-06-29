@@ -96,6 +96,8 @@ export function getAdminDb() {
         projectId: serviceAccount.project_id,
       });
 
+  console.log(`[Firebase Admin] Initialized with project_id: ${serviceAccount.project_id}, client_email: ${serviceAccount.client_email}`);
+
   adminDb = getAdminFirestore(adminApp, FIREBASE_DATABASE_ID);
   adminDb.settings({ ignoreUndefinedProperties: true });
   return adminDb;
