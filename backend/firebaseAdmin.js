@@ -14,6 +14,7 @@ const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(MODULE_DIR, "..");
 
 let adminDb = null;
+let defaultAdminDb = null;
 
 function cleanEnvValue(value) {
   if (typeof value !== "string") return value;
@@ -89,7 +90,7 @@ function loadServiceAccount(credentialsValue) {
   return JSON.parse(fs.readFileSync(resolvedPath, "utf8"));
 }
 
-function logAdminConfig(source, serviceAccount, databaseId) {
+function logAdminConfig(source, serviceAccount, databaseId, forceDefault) {
   console.log("[Firebase Admin] credential source:", source);
   console.log(
     "[Firebase Admin] project_id:",
@@ -99,12 +100,13 @@ function logAdminConfig(source, serviceAccount, databaseId) {
   );
   console.log(
     "[Firebase Admin] FIREBASE_DATABASE_ID:",
-    databaseId || "<default>",
+    forceDefault ? "<default>" : databaseId || "<default>",
   );
 }
 
-export function getAdminDb() {
-  if (adminDb) return adminDb;
+export function getAdminDb(forceDefault = false) {
+  if (forceDefault && defaultAdminDb) return defaultAdminDb;
+  if (!forceDefault && adminDb) return adminDb;
 
   const FIREBASE_DATABASE_ID = cleanEnvValue(process.env.FIREBASE_DATABASE_ID);
   const serviceAccountFromEnv = buildServiceAccountFromEnv();
@@ -120,11 +122,10 @@ export function getAdminDb() {
     );
   }
 
-  logAdminConfig(
-    serviceAccountFromEnv ? "env vars" : "credentials file/JSON",
-    serviceAccount,
-    FIREBASE_DATABASE_ID,
-  );
+  const logSource = serviceAccountFromEnv
+    ? "env vars"
+    : "credentials file/JSON";
+  logAdminConfig(logSource, serviceAccount, FIREBASE_DATABASE_ID, forceDefault);
 
   const adminApp = getApps().length
     ? getApps()[0]
@@ -137,9 +138,37 @@ export function getAdminDb() {
     `[Firebase Admin] Initialized with project_id: ${serviceAccount.project_id}, client_email: ${serviceAccount.client_email}`,
   );
 
-  adminDb = FIREBASE_DATABASE_ID
-    ? getAdminFirestore(adminApp, FIREBASE_DATABASE_ID)
-    : getAdminFirestore(adminApp);
-  adminDb.settings({ ignoreUndefinedProperties: true });
-  return adminDb;
+  const db =
+    forceDefault || !FIREBASE_DATABASE_ID
+      ? getAdminFirestore(adminApp)
+      : getAdminFirestore(adminApp, FIREBASE_DATABASE_ID);
+  db.settings({ ignoreUndefinedProperties: true });
+
+  if (forceDefault) {
+    defaultAdminDb = db;
+  } else {
+    adminDb = db;
+  }
+
+  return db;
+}
+
+export async function runFirestoreOperation(operation) {
+  const db = getAdminDb();
+
+  try {
+    return await operation(db);
+  } catch (error) {
+    if (
+      (error?.code === 5 || error?.code === "5" || error?.status === 404) &&
+      process.env.FIREBASE_DATABASE_ID
+    ) {
+      console.warn(
+        "[Firebase Admin] Firestore NOT_FOUND error with configured FIREBASE_DATABASE_ID. Retrying with default Firestore database...",
+      );
+      const fallbackDb = getAdminDb(true);
+      return await operation(fallbackDb);
+    }
+    throw error;
+  }
 }

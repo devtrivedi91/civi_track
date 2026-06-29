@@ -1,5 +1,5 @@
 import express from "express";
-import { getAdminDb } from "../firebaseAdmin.js";
+import { runFirestoreOperation } from "../firebaseAdmin.js";
 
 const router = express.Router();
 
@@ -42,10 +42,9 @@ function sanitizeUserPayload(input, uid) {
 
 router.get("/:uid", async (req, res) => {
   try {
-    const userDoc = await getAdminDb()
-      .collection("users")
-      .doc(req.params.uid)
-      .get();
+    const userDoc = await runFirestoreOperation((db) =>
+      db.collection("users").doc(req.params.uid).get(),
+    );
     if (!userDoc.exists) {
       return res.status(404).json({ error: "User profile not found." });
     }
@@ -60,10 +59,9 @@ router.get("/:uid", async (req, res) => {
 router.put("/:uid", async (req, res) => {
   try {
     const user = sanitizeUserPayload(req.body, req.params.uid);
-    await getAdminDb()
-      .collection("users")
-      .doc(req.params.uid)
-      .set(user, { merge: true });
+    await runFirestoreOperation((db) =>
+      db.collection("users").doc(req.params.uid).set(user, { merge: true }),
+    );
     res.json({ user });
   } catch (error) {
     console.error("Error saving user with Firebase Admin:", error);

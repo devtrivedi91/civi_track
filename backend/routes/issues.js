@@ -1,5 +1,5 @@
 import express from "express";
-import { getAdminDb } from "../firebaseAdmin.js";
+import { runFirestoreOperation } from "../firebaseAdmin.js";
 
 const router = express.Router();
 
@@ -86,7 +86,9 @@ function sanitizeIssuePayload(input, issueId) {
 
 router.get("/", async (_req, res) => {
   try {
-    const snapshot = await getAdminDb().collection("issues").get();
+    const snapshot = await runFirestoreOperation((db) =>
+      db.collection("issues").get(),
+    );
     const issues = snapshot.docs
       .map((docSnap) => docSnap.data())
       .sort(
@@ -115,10 +117,9 @@ router.post("/", async (req, res) => {
   try {
     const issue = sanitizeIssuePayload(req.body);
 
-    await getAdminDb()
-      .collection("issues")
-      .doc(issue.issueId)
-      .set(issue, { merge: true });
+    await runFirestoreOperation((db) =>
+      db.collection("issues").doc(issue.issueId).set(issue, { merge: true }),
+    );
     res.json({ issue });
   } catch (error) {
     console.error("Error saving issue with Firebase Admin:", error);
@@ -134,10 +135,12 @@ router.post("/", async (req, res) => {
 router.patch("/:issueId", async (req, res) => {
   try {
     const updates = sanitizeIssuePayload(req.body, req.params.issueId);
-    await getAdminDb()
-      .collection("issues")
-      .doc(req.params.issueId)
-      .set(updates, { merge: true });
+    await runFirestoreOperation((db) =>
+      db
+        .collection("issues")
+        .doc(req.params.issueId)
+        .set(updates, { merge: true }),
+    );
     res.json({ ok: true });
   } catch (error) {
     console.error("Error updating issue with Firebase Admin:", error);

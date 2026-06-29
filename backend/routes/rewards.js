@@ -1,6 +1,6 @@
 import express from "express";
-import { getAdminDb } from "../firebaseAdmin.js";
 import { randomUUID } from "crypto";
+import { runFirestoreOperation } from "../firebaseAdmin.js";
 
 const router = express.Router();
 
@@ -18,7 +18,9 @@ function isFirestoreUnavailable(error) {
 
 router.get("/", async (req, res) => {
   try {
-    const snapshot = await getAdminDb().collection("rewards").get();
+    const snapshot = await runFirestoreOperation((db) =>
+      db.collection("rewards").get(),
+    );
     const rewards = snapshot.docs.map((docSnap) => docSnap.data());
     res.json({ rewards });
   } catch (error) {
@@ -34,10 +36,9 @@ router.get("/", async (req, res) => {
 
 router.get("/history/:uid", async (req, res) => {
   try {
-    const snapshot = await getAdminDb()
-      .collection("redemptions")
-      .where("uid", "==", req.params.uid)
-      .get();
+    const snapshot = await runFirestoreOperation((db) =>
+      db.collection("redemptions").where("uid", "==", req.params.uid).get(),
+    );
 
     const history = snapshot.docs
       .map((doc) => doc.data())
@@ -72,10 +73,9 @@ router.post("/", async (req, res) => {
       createdAt: new Date().toISOString(),
     };
 
-    await getAdminDb()
-      .collection("rewards")
-      .doc(rewardId)
-      .set(reward, { merge: true });
+    await runFirestoreOperation((db) =>
+      db.collection("rewards").doc(rewardId).set(reward, { merge: true }),
+    );
     res.json({ reward });
   } catch (error) {
     console.error("Error creating reward:", error);
@@ -91,10 +91,12 @@ router.post("/", async (req, res) => {
 router.patch("/:id/stock", async (req, res) => {
   try {
     const { stock } = req.body;
-    await getAdminDb()
-      .collection("rewards")
-      .doc(req.params.id)
-      .set({ stock: Number(stock) }, { merge: true });
+    await runFirestoreOperation((db) =>
+      db
+        .collection("rewards")
+        .doc(req.params.id)
+        .set({ stock: Number(stock) }, { merge: true }),
+    );
     res.json({ success: true });
   } catch (error) {
     console.error("Error updating stock:", error);
@@ -110,51 +112,51 @@ router.patch("/:id/stock", async (req, res) => {
 router.post("/redeem", async (req, res) => {
   try {
     const { uid, rewardId } = req.body;
-    const db = getAdminDb();
+    await runFirestoreOperation(async (db) => {
+      await db.runTransaction(async (transaction) => {
+        const userRef = db.collection("users").doc(uid);
+        const userDoc = await transaction.get(userRef);
+        if (!userDoc.exists) throw new Error("User not found.");
 
-    await db.runTransaction(async (transaction) => {
-      const userRef = db.collection("users").doc(uid);
-      const userDoc = await transaction.get(userRef);
-      if (!userDoc.exists) throw new Error("User not found.");
+        const rewardRef = db.collection("rewards").doc(rewardId);
+        const rewardDoc = await transaction.get(rewardRef);
+        if (!rewardDoc.exists) throw new Error("Reward not found.");
 
-      const rewardRef = db.collection("rewards").doc(rewardId);
-      const rewardDoc = await transaction.get(rewardRef);
-      if (!rewardDoc.exists) throw new Error("Reward not found.");
+        const userData = userDoc.data();
+        const rewardData = rewardDoc.data();
 
-      const userData = userDoc.data();
-      const rewardData = rewardDoc.data();
+        if (userData.points < rewardData.pointCost) {
+          throw new Error("Insufficient points to redeem this reward.");
+        }
+        if (rewardData.stock <= 0) {
+          throw new Error("Reward out of stock.");
+        }
 
-      if (userData.points < rewardData.pointCost) {
-        throw new Error("Insufficient points to redeem this reward.");
-      }
-      if (rewardData.stock <= 0) {
-        throw new Error("Reward out of stock.");
-      }
+        transaction.update(userRef, {
+          points: userData.points - rewardData.pointCost,
+        });
+        transaction.update(rewardRef, { stock: rewardData.stock - 1 });
 
-      transaction.update(userRef, {
-        points: userData.points - rewardData.pointCost,
-      });
-      transaction.update(rewardRef, { stock: rewardData.stock - 1 });
+        const prefix = rewardData.title
+          .substring(0, 4)
+          .toUpperCase()
+          .replace(/[^A-Z]/g, "GIFT");
+        const randomPart =
+          Math.random().toString(36).substring(2, 6).toUpperCase() +
+          "-" +
+          Math.random().toString(36).substring(2, 6).toUpperCase();
+        const generatedCode = `${prefix}-${randomPart}`;
 
-      const prefix = rewardData.title
-        .substring(0, 4)
-        .toUpperCase()
-        .replace(/[^A-Z]/g, "GIFT");
-      const randomPart =
-        Math.random().toString(36).substring(2, 6).toUpperCase() +
-        "-" +
-        Math.random().toString(36).substring(2, 6).toUpperCase();
-      const generatedCode = `${prefix}-${randomPart}`;
-
-      const redemptionRef = db.collection("redemptions").doc();
-      transaction.set(redemptionRef, {
-        redemptionId: redemptionRef.id,
-        uid,
-        rewardId,
-        rewardTitle: rewardData.title,
-        status: "Provided",
-        redemptionCode: generatedCode,
-        redeemedAt: new Date().toISOString(),
+        const redemptionRef = db.collection("redemptions").doc();
+        transaction.set(redemptionRef, {
+          redemptionId: redemptionRef.id,
+          uid,
+          rewardId,
+          rewardTitle: rewardData.title,
+          status: "Provided",
+          redemptionCode: generatedCode,
+          redeemedAt: new Date().toISOString(),
+        });
       });
     });
 

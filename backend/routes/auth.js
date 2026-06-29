@@ -6,7 +6,7 @@ import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
 } from "firebase/auth";
-import { getAdminDb } from "../firebaseAdmin.js";
+import { runFirestoreOperation } from "../firebaseAdmin.js";
 
 const router = express.Router();
 
@@ -104,10 +104,9 @@ router.post("/register", async (req, res) => {
     );
 
     try {
-      await getAdminDb()
-        .collection("users")
-        .doc(cred.user.uid)
-        .set(newUser, { merge: true });
+      await runFirestoreOperation((db) =>
+        db.collection("users").doc(cred.user.uid).set(newUser, { merge: true }),
+      );
     } catch (error) {
       if (!isFirestoreUnavailable(error)) {
         throw error;
@@ -132,22 +131,21 @@ router.post("/login", async (req, res) => {
     let savedProfile = null;
 
     try {
-      // Fetch profile
-      const userDoc = await getAdminDb()
-        .collection("users")
-        .doc(cred.user.uid)
-        .get();
+      await runFirestoreOperation(async (db) => {
+        // Fetch profile
+        const userDoc = await db.collection("users").doc(cred.user.uid).get();
 
-      if (userDoc.exists) {
-        savedProfile = userDoc.data();
-      } else {
-        // Fallback if missing
-        savedProfile = buildFallbackProfile(email, cred.user.uid);
-        await getAdminDb()
-          .collection("users")
-          .doc(cred.user.uid)
-          .set(savedProfile, { merge: true });
-      }
+        if (userDoc.exists) {
+          savedProfile = userDoc.data();
+        } else {
+          // Fallback if missing
+          savedProfile = buildFallbackProfile(email, cred.user.uid);
+          await db
+            .collection("users")
+            .doc(cred.user.uid)
+            .set(savedProfile, { merge: true });
+        }
+      });
     } catch (error) {
       if (!isFirestoreUnavailable(error)) {
         throw error;
