@@ -15,22 +15,63 @@ const DEFAULT_SERVICE_ACCOUNT_PATH =
 
 let adminDb = null;
 
-export function getAdminDb() {
-  if (adminDb) return adminDb;
+function buildServiceAccountFromEnv() {
+  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
 
-  const serviceAccountPath =
-    process.env.FIREBASE_ADMIN_CREDENTIALS || DEFAULT_SERVICE_ACCOUNT_PATH;
-  const resolvedPath = path.isAbsolute(serviceAccountPath)
-    ? serviceAccountPath
-    : path.join(process.cwd(), serviceAccountPath);
+  if (projectId && clientEmail && privateKey) {
+    return {
+      type: "service_account",
+      project_id: projectId,
+      client_email: clientEmail,
+      private_key: privateKey.replace(/\\n/g, "\n"),
+    };
+  }
 
-  if (!fs.existsSync(resolvedPath)) {
+  const base64Credentials = process.env.FIREBASE_ADMIN_CREDENTIALS_BASE64;
+  if (base64Credentials) {
+    const decoded = Buffer.from(base64Credentials, "base64").toString("utf8");
+    return JSON.parse(decoded);
+  }
+
+  return null;
+}
+
+function loadServiceAccount(credentialsValue) {
+  if (!credentialsValue) {
     throw new Error(
-      `Firebase Admin credentials file not found at ${resolvedPath}`
+      "Firebase Admin credentials are not set. Provide FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_CLIENT_EMAIL, FIREBASE_ADMIN_PRIVATE_KEY, or a JSON value/path in FIREBASE_ADMIN_CREDENTIALS.",
     );
   }
 
-  const serviceAccount = JSON.parse(fs.readFileSync(resolvedPath, "utf8"));
+  const trimmedValue = credentialsValue.trim();
+
+  if (trimmedValue.startsWith("{")) {
+    return JSON.parse(trimmedValue);
+  }
+
+  const resolvedPath = path.isAbsolute(trimmedValue)
+    ? trimmedValue
+    : path.join(process.cwd(), trimmedValue);
+
+  if (!fs.existsSync(resolvedPath)) {
+    throw new Error(
+      `Firebase Admin credentials file not found at ${resolvedPath}`,
+    );
+  }
+
+  return JSON.parse(fs.readFileSync(resolvedPath, "utf8"));
+}
+
+export function getAdminDb() {
+  if (adminDb) return adminDb;
+
+  const serviceAccount =
+    buildServiceAccountFromEnv() ||
+    loadServiceAccount(
+      process.env.FIREBASE_ADMIN_CREDENTIALS || DEFAULT_SERVICE_ACCOUNT_PATH,
+    );
   const adminApp = getApps().length
     ? getApps()[0]
     : initializeAdminApp({

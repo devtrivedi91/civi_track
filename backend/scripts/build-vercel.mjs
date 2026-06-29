@@ -10,7 +10,6 @@ const copyPaths = [
   "firebaseAdmin.js",
   "server.js",
   "package.json",
-  "vast-zone-472711-j5-firebase-adminsdk-fbsvc-17d2b4531a.json",
 ];
 
 function removePath(targetPath) {

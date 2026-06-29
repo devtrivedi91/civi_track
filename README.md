@@ -44,3 +44,18 @@ To deploy the frontend to Firebase Hosting:
 If you want the frontend to point to a different backend URL, set `VITE_API_BASE_URL` before building, for example:
 
 `VITE_API_BASE_URL=https://your-backend.example.com npm run build:frontend`
+
+## Vercel Backend Credentials
+
+The backend can now read Firebase Admin credentials from environment variables, so you do not need to upload a JSON file to GitHub.
+
+Add these variables in the Vercel backend project:
+
+- `FIREBASE_ADMIN_PROJECT_ID`
+- `FIREBASE_ADMIN_CLIENT_EMAIL`
+- `FIREBASE_ADMIN_PRIVATE_KEY`
+- `FIREBASE_DATABASE_ID`
+
+For `FIREBASE_ADMIN_PRIVATE_KEY`, paste the private key text with newlines preserved or escaped as `\n`.
+
+Alternative: set `FIREBASE_ADMIN_CREDENTIALS` to the full JSON service account content, or `FIREBASE_ADMIN_CREDENTIALS_BASE64` to a base64-encoded JSON string.
