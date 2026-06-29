@@ -15,10 +15,24 @@ const DEFAULT_SERVICE_ACCOUNT_PATH =
 
 let adminDb = null;
 
+function cleanEnvValue(value) {
+  if (typeof value !== "string") return value;
+
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+
+  return trimmed;
+}
+
 function buildServiceAccountFromEnv() {
-  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
+  const projectId = cleanEnvValue(process.env.FIREBASE_ADMIN_PROJECT_ID);
+  const clientEmail = cleanEnvValue(process.env.FIREBASE_ADMIN_CLIENT_EMAIL);
+  const privateKey = cleanEnvValue(process.env.FIREBASE_ADMIN_PRIVATE_KEY);
 
   if (projectId && clientEmail && privateKey) {
     return {
@@ -31,7 +45,10 @@ function buildServiceAccountFromEnv() {
 
   const base64Credentials = process.env.FIREBASE_ADMIN_CREDENTIALS_BASE64;
   if (base64Credentials) {
-    const decoded = Buffer.from(base64Credentials, "base64").toString("utf8");
+    const decoded = Buffer.from(
+      cleanEnvValue(base64Credentials),
+      "base64",
+    ).toString("utf8");
     return JSON.parse(decoded);
   }
 
@@ -45,7 +62,7 @@ function loadServiceAccount(credentialsValue) {
     );
   }
 
-  const trimmedValue = credentialsValue.trim();
+  const trimmedValue = cleanEnvValue(credentialsValue);
 
   if (trimmedValue.startsWith("{")) {
     return JSON.parse(trimmedValue);
