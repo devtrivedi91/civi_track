@@ -482,9 +482,15 @@ export default function App() {
       ],
     };
 
+    setIssues((prev) => [freshIssue, ...prev]);
+    setShowReportModal(false);
+    addNotification(
+      "📢 Report Filed Successfully!",
+      "Your issue has been added locally and is being synced to Firebase.",
+    );
+
     try {
       await saveIssue(freshIssue);
-      setIssues((prev) => [freshIssue, ...prev]);
     } catch (err) {
       console.error("Error creating issue in Firebase: ", err);
       setFirebaseStatusMessage(
@@ -492,21 +498,12 @@ export default function App() {
       );
     }
 
-    setShowReportModal(false);
-
     // Award reporting points
     if (currentUser) {
       setCurrentUser((prev) =>
         prev ? { ...prev, points: prev.points + 15 } : null,
       );
     }
-
-    addNotification(
-      "📢 Report Filed Successfully!",
-      "AI automated classification routed the request to " +
-        newIssueData.department +
-        ". Earned +15 points!",
-    );
   };
 
   // Filtering Logic
