@@ -15,6 +15,7 @@ import RewardsStore from "./components/RewardsStore";
 import ImpactDashboard from "./components/ImpactDashboard";
 import LoginModal from "./components/LoginModal";
 import { Gift } from "lucide-react";
+import { apiUrl } from "./lib/api";
 
 export default function App() {
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -23,7 +24,7 @@ export default function App() {
   >(null);
 
   const loadIssues = async () => {
-    const response = await fetch("/api/issues");
+    const response = await fetch(apiUrl("/api/issues"));
     const data = await response.json();
     if (!response.ok) {
       throw new Error(data.error || "Unable to load issues from Firebase.");
@@ -32,7 +33,7 @@ export default function App() {
   };
 
   const saveIssue = async (issue: Issue) => {
-    const response = await fetch("/api/issues", {
+    const response = await fetch(apiUrl("/api/issues"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(issue),
@@ -44,7 +45,7 @@ export default function App() {
   };
 
   const updateIssue = async (issueId: string, updates: Partial<Issue>) => {
-    const response = await fetch(`/api/issues/${issueId}`, {
+    const response = await fetch(apiUrl(`/api/issues/${issueId}`), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),
@@ -80,8 +81,8 @@ export default function App() {
         "community_hero_session",
         JSON.stringify({
           user: currentUser,
-          expiresAt: Date.now() + 24 * 60 * 60 * 1000, 
-        })
+          expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+        }),
       );
     } else {
       localStorage.removeItem("community_hero_session");
@@ -576,7 +577,7 @@ export default function App() {
           >
             Insights
           </button>
-          
+
           <button
             onClick={() => setActivePortal("rewards")}
             className={`px-4 py-2 rounded-xl transition-all font-semibold flex items-center gap-1 cursor-pointer ${activePortal === "rewards" ? "bg-pink-100 text-pink-700 shadow-sm" : "text-pink-600 hover:bg-pink-50"}`}
@@ -1222,9 +1223,11 @@ export default function App() {
         )}
         {/* REWARDS PORTAL */}
         {activePortal === "rewards" && currentUser && (
-          <RewardsStore 
-             currentUser={currentUser} 
-             onUpdatePoints={(newPoints) => setCurrentUser({...currentUser, points: newPoints})}
+          <RewardsStore
+            currentUser={currentUser}
+            onUpdatePoints={(newPoints) =>
+              setCurrentUser({ ...currentUser, points: newPoints })
+            }
           />
         )}
       </main>

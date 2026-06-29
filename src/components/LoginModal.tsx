@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import { UserProfile, UserRole } from "../types";
 import { initialMockUsers } from "../lib/mockData";
-import {
-  auth,
-} from "../lib/firebase";
+import { auth } from "../lib/firebase";
+import { apiUrl } from "../lib/api";
 interface LoginModalProps {
   onClose: () => void;
   onLoginSuccess: (user: UserProfile) => void;
@@ -32,7 +31,7 @@ function getAuthErrorMessage(error: any) {
 }
 
 async function saveUserProfile(user: UserProfile) {
-  const response = await fetch(`/api/users/${user.uid}`, {
+  const response = await fetch(apiUrl(`/api/users/${user.uid}`), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(user),
@@ -44,7 +43,7 @@ async function saveUserProfile(user: UserProfile) {
 }
 
 async function loadUserProfile(uid: string) {
-  const response = await fetch(`/api/users/${uid}`);
+  const response = await fetch(apiUrl(`/api/users/${uid}`));
   if (response.status === 404) return null;
 
   const data = await response.json();
@@ -75,10 +74,10 @@ export default function LoginModal({
     e.preventDefault();
     try {
       if (tab === "forgot") {
-        const response = await fetch("/api/auth/forgot-password", {
+        const response = await fetch(apiUrl("/api/auth/forgot-password"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email })
+          body: JSON.stringify({ email }),
         });
         if (!response.ok) throw new Error((await response.json()).error);
         alert(`Password reset link sent to ${email} successfully!`);
@@ -87,28 +86,28 @@ export default function LoginModal({
       }
 
       if (tab === "register") {
-        const response = await fetch("/api/auth/register", {
+        const response = await fetch(apiUrl("/api/auth/register"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, name, role, ward })
+          body: JSON.stringify({ email, password, name, role, ward }),
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error);
-        
+
         onLoginSuccess(data.user);
         onClose();
         return;
       }
 
       // Standard Login
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch(apiUrl("/api/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
-      
+
       onLoginSuccess(data.user);
       onClose();
     } catch (err: any) {

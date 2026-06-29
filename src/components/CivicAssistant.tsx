@@ -1,16 +1,19 @@
 import { useState, useRef, useEffect } from "react";
 import { Issue } from "../types";
+import { apiUrl } from "../lib/api";
 
 interface CivicAssistantProps {
   issues: Issue[];
 }
 
 export default function CivicAssistant({ issues }: CivicAssistantProps) {
-  const [messages, setMessages] = useState<Array<{ role: "user" | "model"; text: string }>>([
+  const [messages, setMessages] = useState<
+    Array<{ role: "user" | "model"; text: string }>
+  >([
     {
       role: "model",
-      text: "👋 Namaste! I am your Community Hero AI Civic Assistant. You can ask me questions about local guidelines, municipal services, reporting processes, or check the real-time status of any reported issue."
-    }
+      text: "👋 Namaste! I am your Community Hero AI Civic Assistant. You can ask me questions about local guidelines, municipal services, reporting processes, or check the real-time status of any reported issue.",
+    },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,7 +23,7 @@ export default function CivicAssistant({ issues }: CivicAssistantProps) {
     { text: "How do I report a water leak?", label: "💧 Report Leak" },
     { text: "Who handles road and pothole repairs?", label: "🛣️ Road Repairs" },
     { text: "How do I earn badges and points?", label: "🏆 Gamification" },
-    { text: "Show me active emergencies", label: "⚠️ Emergencies" }
+    { text: "Show me active emergencies", label: "⚠️ Emergencies" },
   ];
 
   const scrollToBottom = () => {
@@ -44,13 +47,17 @@ export default function CivicAssistant({ issues }: CivicAssistantProps) {
     let localResponse = "";
 
     // If looking up status of a specific complaint
-    if (lowerMsg.includes("status") || lowerMsg.includes("complaint") || lowerMsg.includes("issue")) {
+    if (
+      lowerMsg.includes("status") ||
+      lowerMsg.includes("complaint") ||
+      lowerMsg.includes("issue")
+    ) {
       // Look for match with issue titles or IDs
       const matchedIssue = issues.find(
         (issue) =>
           lowerMsg.includes(issue.issueId.toLowerCase()) ||
           lowerMsg.includes(issue.title.toLowerCase().substring(0, 15)) ||
-          (issue.category && lowerMsg.includes(issue.category.toLowerCase()))
+          (issue.category && lowerMsg.includes(issue.category.toLowerCase())),
       );
 
       if (matchedIssue) {
@@ -66,11 +73,23 @@ export default function CivicAssistant({ issues }: CivicAssistantProps) {
       }
     }
 
-    if (lowerMsg.includes("active emergencies") || lowerMsg.includes("emergency")) {
-      const emergencyIssues = issues.filter(i => i.isEmergency && i.status !== "Resolved" && i.status !== "Closed");
+    if (
+      lowerMsg.includes("active emergencies") ||
+      lowerMsg.includes("emergency")
+    ) {
+      const emergencyIssues = issues.filter(
+        (i) =>
+          i.isEmergency && i.status !== "Resolved" && i.status !== "Closed",
+      );
       if (emergencyIssues.length > 0) {
-        localResponse = `⚠️ **Active Critical Emergencies Detected Nearby:**\n\n` +
-          emergencyIssues.map(i => `* **[${i.emergencyType}] ${i.title}** at *${i.location.areaName}*\n  Status: \`${i.status}\` | Severity: \`${i.severity}\` (Priority Escalated)`).join("\n\n");
+        localResponse =
+          `⚠️ **Active Critical Emergencies Detected Nearby:**\n\n` +
+          emergencyIssues
+            .map(
+              (i) =>
+                `* **[${i.emergencyType}] ${i.title}** at *${i.location.areaName}*\n  Status: \`${i.status}\` | Severity: \`${i.severity}\` (Priority Escalated)`,
+            )
+            .join("\n\n");
       } else {
         localResponse = `✅ No active severe safety emergencies (fires, floods, electrical arcs) are currently reported in the local ward databases. All systems are stable.`;
       }
@@ -78,18 +97,23 @@ export default function CivicAssistant({ issues }: CivicAssistantProps) {
 
     try {
       // Trigger API endpoint
-      const response = await fetch("/api/ai/assistant", {
+      const response = await fetch(apiUrl("/api/ai/assistant"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: userMsg,
           // If we have localResponse, we can append it or guide the AI
-          history: messages.map(m => ({ role: m.role, parts: [{ text: m.text }] }))
-        })
+          history: messages.map((m) => ({
+            role: m.role,
+            parts: [{ text: m.text }],
+          })),
+        }),
       });
 
       const data = await response.json();
-      let aiText = data.response || "I apologize, I'm having difficulty connecting to the server. Let me try again shortly.";
+      let aiText =
+        data.response ||
+        "I apologize, I'm having difficulty connecting to the server. Let me try again shortly.";
 
       if (localResponse) {
         aiText = `${localResponse}\n\n---\n*AI Assistant Note:* ${aiText}`;
@@ -100,10 +124,12 @@ export default function CivicAssistant({ issues }: CivicAssistantProps) {
       console.error("Assistant API Error:", error);
       setMessages((prev) => [
         ...prev,
-        { 
-          role: "model", 
-          text: localResponse || "I encountered a minor network issue. Please check your internet connection or try again." 
-        }
+        {
+          role: "model",
+          text:
+            localResponse ||
+            "I encountered a minor network issue. Please check your internet connection or try again.",
+        },
       ]);
     } finally {
       setLoading(false);
@@ -116,12 +142,24 @@ export default function CivicAssistant({ issues }: CivicAssistantProps) {
       <div className="bg-indigo-900 px-4 py-4 text-white flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 bg-indigo-500/35 rounded-xl flex items-center justify-center border border-indigo-400/30">
-            <svg className="w-5 h-5 text-indigo-200 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            <svg
+              className="w-5 h-5 text-indigo-200 animate-pulse"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+              />
             </svg>
           </div>
           <div>
-            <h3 className="font-semibold text-sm font-display tracking-tight">Civic AI Assistant</h3>
+            <h3 className="font-semibold text-sm font-display tracking-tight">
+              Civic AI Assistant
+            </h3>
             <span className="text-[10px] text-indigo-300 flex items-center gap-1">
               <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-ping"></span>
               Online • AI Agent Ready
@@ -198,8 +236,18 @@ export default function CivicAssistant({ issues }: CivicAssistantProps) {
           disabled={!input.trim() || loading}
           className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white p-2.5 rounded-xl transition-all cursor-pointer shadow-sm active:scale-95"
         >
-          <svg className="w-4 h-4 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l92 2-9-18-9 18 9-2zm0 0v-8" />
+          <svg
+            className="w-4 h-4 transform rotate-90"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 19l92 2-9-18-9 18 9-2zm0 0v-8"
+            />
           </svg>
         </button>
       </form>

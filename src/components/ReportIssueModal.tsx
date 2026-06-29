@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import InteractiveMap from "./InteractiveMap";
 import { Issue, UserProfile } from "../types";
+import { apiUrl } from "../lib/api";
 
 interface ReportIssueModalProps {
   onClose: () => void;
@@ -181,7 +182,7 @@ export default function ReportIssueModal({
 
     setAnalyzing(true);
     try {
-      const response = await fetch("/api/ai/analyze-issue", {
+      const response = await fetch(apiUrl("/api/ai/analyze-issue"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

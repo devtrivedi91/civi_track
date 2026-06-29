@@ -28,3 +28,19 @@ You can also build separately:
 
 - `npm run build:frontend`
 - `npm run build:backend`
+
+## Firebase Hosting
+
+The frontend is configured to call the backend at `https://civi-track-tau.vercel.app` by default in production.
+
+To deploy the frontend to Firebase Hosting:
+
+1. Install the Firebase CLI if you do not have it yet: `npm install -g firebase-tools`
+2. Sign in: `firebase login`
+3. Select or create your Firebase project: `firebase use <your-firebase-project-id>`
+4. Build the app with `npm run build:frontend`
+5. Deploy with `firebase deploy --only hosting`
+
+If you want the frontend to point to a different backend URL, set `VITE_API_BASE_URL` before building, for example:
+
+`VITE_API_BASE_URL=https://your-backend.example.com npm run build:frontend`
