@@ -4,6 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "build": "node scripts/build-vercel.mjs",
+    "build:frontend": "node scripts/build-vercel.mjs",
     "start": "node server.js",
     "dev": "node server.js"
   },
