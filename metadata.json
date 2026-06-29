@@ -1,0 +1,6 @@
+{
+  "name": "Community Hero AI",
+  "description": "Civic engagement platform enabling citizens to report, verify, track, and resolve community issues using AI, geolocation, and crowdsourced validation.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
