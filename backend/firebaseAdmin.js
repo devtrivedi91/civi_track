@@ -9,7 +9,7 @@ import {
 import { getFirestore as getAdminFirestore } from "firebase-admin/firestore";
 
 const FIREBASE_DATABASE_ID =
-  process.env.FIREBASE_DATABASE_ID ||
+  cleanEnvValue(process.env.FIREBASE_DATABASE_ID) ||
   "ai-studio-9058f14f-cff7-45f2-bffc-29ef557ed2de";
 const DEFAULT_SERVICE_ACCOUNT_PATH =
   "vast-zone-472711-j5-firebase-adminsdk-fbsvc-17d2b4531a.json";

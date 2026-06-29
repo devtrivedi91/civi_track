@@ -16,6 +16,18 @@ function isPlainObject(value) {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
+function isFirestoreUnavailable(error) {
+  return (
+    error?.code === 5 ||
+    error?.code === "5" ||
+    error?.status === 404 ||
+    String(error?.message || "").includes("NOT_FOUND") ||
+    String(error?.message || "")
+      .toLowerCase()
+      .includes("not found")
+  );
+}
+
 function sanitizeIssuePayload(input, issueId) {
   if (!isPlainObject(input)) {
     throw new Error("Issue payload must be an object.");
@@ -80,12 +92,17 @@ router.get("/", async (_req, res) => {
       .sort(
         (a, b) =>
           new Date(b.createdAt || 0).getTime() -
-          new Date(a.createdAt || 0).getTime()
+          new Date(a.createdAt || 0).getTime(),
       );
 
     res.json({ issues });
   } catch (error) {
     console.error("Error loading issues with Firebase Admin:", error);
+
+    if (isFirestoreUnavailable(error)) {
+      return res.json({ issues: [] });
+    }
+
     res.status(500).json({ error: error.message || "Unable to load issues." });
   }
 });
@@ -101,6 +118,11 @@ router.post("/", async (req, res) => {
     res.json({ issue });
   } catch (error) {
     console.error("Error saving issue with Firebase Admin:", error);
+
+    if (isFirestoreUnavailable(error)) {
+      return res.json({ issue, degradedMode: true });
+    }
+
     res.status(500).json({ error: error.message || "Unable to save issue." });
   }
 });
@@ -115,6 +137,11 @@ router.patch("/:issueId", async (req, res) => {
     res.json({ ok: true });
   } catch (error) {
     console.error("Error updating issue with Firebase Admin:", error);
+
+    if (isFirestoreUnavailable(error)) {
+      return res.json({ ok: true, degradedMode: true });
+    }
+
     res.status(500).json({ error: error.message || "Unable to update issue." });
   }
 });
