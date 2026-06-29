@@ -8,7 +8,6 @@ import {
 } from "firebase-admin/app";
 import { getFirestore as getAdminFirestore } from "firebase-admin/firestore";
 
-const FIREBASE_DATABASE_ID = cleanEnvValue(process.env.FIREBASE_DATABASE_ID);
 const DEFAULT_SERVICE_ACCOUNT_PATH =
   "vast-zone-472711-j5-firebase-adminsdk-fbsvc-17d2b4531a.json";
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -90,14 +89,43 @@ function loadServiceAccount(credentialsValue) {
   return JSON.parse(fs.readFileSync(resolvedPath, "utf8"));
 }
 
+function logAdminConfig(source, serviceAccount, databaseId) {
+  console.log("[Firebase Admin] credential source:", source);
+  console.log(
+    "[Firebase Admin] project_id:",
+    serviceAccount?.project_id ||
+      process.env.FIREBASE_ADMIN_PROJECT_ID ||
+      "MISSING",
+  );
+  console.log(
+    "[Firebase Admin] FIREBASE_DATABASE_ID:",
+    databaseId || "<default>",
+  );
+}
+
 export function getAdminDb() {
   if (adminDb) return adminDb;
 
+  const FIREBASE_DATABASE_ID = cleanEnvValue(process.env.FIREBASE_DATABASE_ID);
+  const serviceAccountFromEnv = buildServiceAccountFromEnv();
   const serviceAccount =
-    buildServiceAccountFromEnv() ||
+    serviceAccountFromEnv ||
     loadServiceAccount(
       process.env.FIREBASE_ADMIN_CREDENTIALS || DEFAULT_SERVICE_ACCOUNT_PATH,
     );
+
+  if (!serviceAccount.project_id && process.env.FIREBASE_ADMIN_PROJECT_ID) {
+    serviceAccount.project_id = cleanEnvValue(
+      process.env.FIREBASE_ADMIN_PROJECT_ID,
+    );
+  }
+
+  logAdminConfig(
+    serviceAccountFromEnv ? "env vars" : "credentials file/JSON",
+    serviceAccount,
+    FIREBASE_DATABASE_ID,
+  );
+
   const adminApp = getApps().length
     ? getApps()[0]
     : initializeAdminApp({
