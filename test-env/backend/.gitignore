@@ -1,0 +1,10 @@
+node_modules/
+.env
+.env.local
+.env.production
+.env.*
+!firebase-adminsdk*.json
+*firebase-adminsdk*.json
+
+# Depending on if credentials are to be checked in, they usually aren't, so hiding them:
+vast-zone-*.json

@@ -8,7 +8,9 @@ import {
 } from "firebase-admin/app";
 import { getFirestore as getAdminFirestore } from "firebase-admin/firestore";
 
-const FIREBASE_DATABASE_ID = cleanEnvValue(process.env.FIREBASE_DATABASE_ID);
+const FIREBASE_DATABASE_ID =
+  cleanEnvValue(process.env.FIREBASE_DATABASE_ID) ||
+  "ai-studio-9058f14f-cff7-45f2-bffc-29ef557ed2de";
 const DEFAULT_SERVICE_ACCOUNT_PATH =
   "vast-zone-472711-j5-firebase-adminsdk-fbsvc-17d2b4531a.json";
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -109,9 +111,7 @@ export function getAdminDb() {
     `[Firebase Admin] Initialized with project_id: ${serviceAccount.project_id}, client_email: ${serviceAccount.client_email}`,
   );
 
-  adminDb = FIREBASE_DATABASE_ID
-    ? getAdminFirestore(adminApp, FIREBASE_DATABASE_ID)
-    : getAdminFirestore(adminApp);
+  adminDb = getAdminFirestore(adminApp, FIREBASE_DATABASE_ID);
   adminDb.settings({ ignoreUndefinedProperties: true });
   return adminDb;
 }
