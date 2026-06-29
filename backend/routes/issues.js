@@ -100,7 +100,11 @@ router.get("/", async (_req, res) => {
     console.error("Error loading issues with Firebase Admin:", error);
 
     if (isFirestoreUnavailable(error)) {
-      return res.json({ issues: [] });
+      return res.status(503).json({
+        issues: [],
+        degradedMode: true,
+        error: "Firestore is unavailable.",
+      });
     }
 
     res.status(500).json({ error: error.message || "Unable to load issues." });

@@ -29,7 +29,10 @@ export default function App() {
     if (!response.ok) {
       throw new Error(data.error || "Unable to load issues from Firebase.");
     }
-    return (data.issues || []) as Issue[];
+    return {
+      issues: (data.issues || []) as Issue[],
+      degradedMode: Boolean(data.degradedMode),
+    };
   };
 
   const saveIssue = async (issue: Issue) => {
@@ -154,34 +157,27 @@ export default function App() {
 
     const syncIssues = async () => {
       try {
-        const fetched = await loadIssues();
+        const { issues: fetched, degradedMode } = await loadIssues();
         if (cancelled) return;
+
+        if (degradedMode) {
+          setIssues(initialMockIssues);
+          setFirebaseStatusMessage(
+            "Firebase Admin API is unavailable. Showing local demo reports until server credentials are fixed.",
+          );
+          return;
+        }
 
         fetched.sort(
           (a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
         );
 
-        // If collection is empty during initial dev, prepopulate with mock data
         if (fetched.length === 0) {
-          setIssues(initialMockIssues);
           setFirebaseStatusMessage(
-            "Firebase is reachable, but the issues collection is empty. Showing starter demo reports while seeding Firebase.",
+            "Firebase is reachable, but no issues are stored yet.",
           );
-          try {
-            await Promise.all(initialMockIssues.map(saveIssue));
-            if (!cancelled) {
-              setIssues(initialMockIssues);
-              setFirebaseStatusMessage(null);
-            }
-          } catch (seedError) {
-            console.error("Firebase seed error:", seedError);
-            if (!cancelled) {
-              setFirebaseStatusMessage(
-                "Could not seed Firebase. Showing local demo reports until server credentials are fixed.",
-              );
-            }
-          }
+          setIssues([]);
         } else {
           setIssues(fetched);
           setFirebaseStatusMessage(null);

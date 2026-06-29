@@ -10,6 +10,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { apiUrl } from "../lib/api";
+import { initialMockRewards } from "../lib/mockData";
 
 interface Redemption {
   redemptionId: string;
@@ -95,10 +96,22 @@ export default function RewardsStore({
       const dataRewards = await resRewards.json();
       const dataHistory = await resHistory.json();
 
-      if (dataRewards.rewards) setRewards(dataRewards.rewards);
+      const fetchedRewards = Array.isArray(dataRewards.rewards)
+        ? dataRewards.rewards
+        : [];
+
+      if (dataRewards.degradedMode) {
+        setRewards(initialMockRewards);
+      } else if (fetchedRewards.length > 0) {
+        setRewards(fetchedRewards);
+      } else {
+        setRewards(initialMockRewards);
+      }
+
       if (dataHistory.history) setHistory(dataHistory.history);
     } catch (err) {
       console.error("Failed to fetch rewards details", err);
+      setRewards(initialMockRewards);
     } finally {
       setLoading(false);
     }
@@ -113,6 +126,21 @@ export default function RewardsStore({
     const config = GIFT_CARD_TYPES[rewardType];
     const generatedTitle = `$${cardAmount} ${config.title}`;
     const generatedDesc = `Redeem your hard-earned points for a $${cardAmount} digital ${config.title}.`;
+    const optimisticReward = {
+      rewardId: `reward-${Date.now()}`,
+      title: generatedTitle,
+      description: generatedDesc,
+      pointCost: Number(pointCost),
+      stock: Number(stock),
+      createdAt: new Date().toISOString(),
+    };
+
+    setRewards((prev) => [optimisticReward, ...prev]);
+    setAlertBox({
+      title: "Publisher Live",
+      message: "Reward tier published locally and syncing to Firebase.",
+      isConfirm: false,
+    });
 
     try {
       const res = await fetch(apiUrl("/api/rewards"), {
@@ -125,17 +153,34 @@ export default function RewardsStore({
           stock,
         }),
       });
-      if (res.ok) {
-        setCardAmount("10");
-        setAlertBox({
-          title: "Publisher Live",
-          message: "Reward tier successfully created and published!",
-          isConfirm: false,
-        });
-        loadRewards();
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || "Unable to publish reward.");
       }
+
+      loadRewards();
+      setAlertBox({
+        title: "Publisher Live",
+        message: data.degradedMode
+          ? "Reward published locally because Firebase is temporarily unavailable."
+          : "Reward tier successfully created and published!",
+        isConfirm: false,
+      });
+      setCardAmount("10");
+      setPointCost("100");
+      setStock("10");
     } catch (err) {
       console.error(err);
+      setAlertBox({
+        title: "Publish Failed",
+        message:
+          err instanceof Error ? err.message : "Could not publish reward.",
+        isConfirm: false,
+      });
+      setRewards((prev) =>
+        prev.filter((reward) => reward.rewardId !== optimisticReward.rewardId),
+      );
     }
   };
 
@@ -315,6 +360,49 @@ export default function RewardsStore({
             Publish {GIFT_CARD_TYPES[rewardType].title}
           </button>
         </form>
+      )}
+
+      {alertBox && (
+        <div className="fixed bottom-6 right-6 z-[2100] max-w-sm bg-white border border-slate-200 shadow-2xl rounded-2xl p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h4 className="font-bold text-slate-900 text-sm">
+                {alertBox.title}
+              </h4>
+              <p className="text-xs text-slate-600 mt-1">{alertBox.message}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAlertBox(null)}
+              className="text-slate-400 hover:text-slate-700 text-sm font-bold"
+              aria-label="Dismiss alert"
+            >
+              ×
+            </button>
+          </div>
+          {alertBox.isConfirm && (
+            <div className="mt-4 flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setAlertBox(null)}
+                className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const confirmAction = alertBox.onConfirm;
+                  setAlertBox(null);
+                  confirmAction?.();
+                }}
+                className="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold"
+              >
+                Confirm
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Tab Management System */}
